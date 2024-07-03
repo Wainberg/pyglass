@@ -8,7 +8,6 @@
 #include "glass/hnswlib/space_ip.h"
 #include "glass/hnswlib/space_l2.h"
 #include "glass/hnswlib/hnswalg.h"
-#include <chrono>
 #include <memory>
 
 namespace glass {
@@ -37,20 +36,11 @@ struct HNSW : public Builder {
     nb = N;
     hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(space.get(), N, M,
                                                              efConstruction);
-    std::atomic<int> cnt{0};
-    auto st = std::chrono::high_resolution_clock::now();
     hnsw->addPoint(data, 0);
 #pragma omp parallel for schedule(dynamic)
     for (int i = 1; i < nb; ++i) {
       hnsw->addPoint(data + i * dim, i);
-      int cur = cnt += 1;
-      if (cur % 10000 == 0) {
-        printf("HNSW building progress: [%d/%d]\n", cur, nb);
-      }
     }
-    auto ed = std::chrono::high_resolution_clock::now();
-    auto ela = std::chrono::duration<double>(ed - st).count();
-    printf("HNSW building cost: %.2lfs\n", ela);
     final_graph.init(nb, 2 * M);
 #pragma omp parallel for
       for (int i = 0; i < nb; ++i) {
